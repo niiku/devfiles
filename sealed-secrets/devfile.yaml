@@ -1,0 +1,57 @@
+apiVersion: 1.0.0
+metadata:
+  name: niiku-golang
+projects:
+  - name: sealed-secrets
+    source:
+      location: 'https://github.com/niiku/sealed-secrets.git'
+      type: git
+components:
+  - id: golang/go/latest
+    preferences:
+      go.lintTool: golangci-lint
+      go.lintFlags: '--fast'
+    type: chePlugin
+    alias: go-plugin
+  - mountSources: true
+    endpoints:
+      - name: 8080-tcp
+        port: 8080
+    memoryLimit: 4Gi
+    type: dockerimage
+    alias: go-cli
+    image: 'registry.redhat.io/codeready-workspaces/stacks-golang-rhel8@sha256:a4c848642e5cbd2e503915932c27342c94904763caa9085a866cb39c7e443335'
+    env:
+      - value: '/projects/.che/gopath:$(CHE_PROJECTS_ROOT)'
+        name: GOPATH
+      - value: /tmp/.cache
+        name: GOCACHE
+commands:
+  - name: 1. Build the application
+    actions:
+      - workdir: '${CHE_PROJECTS_ROOT}/sealed-secrets'
+        type: exec
+        command: make
+        component: go-cli
+  - name: 2. Run kubeseal
+    actions:
+      - workdir: '${CHE_PROJECTS_ROOT}/sealed-secrets'
+        type: exec
+        command: ./kubeseal
+        component: go-cli
+  - name: Debug configuration
+    actions:
+      - referenceContent: |
+          {
+            "version": "0.2.0",
+            "configurations": [
+              {
+                "name": "Debug current file",
+                "type": "go",
+                "request": "launch",
+                "mode": "auto",
+                "program": "${fileDirname}"
+              }
+            ]
+          }
+        type: vscode-launch
